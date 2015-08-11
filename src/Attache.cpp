@@ -97,7 +97,7 @@ namespace gazebo {
     std::string strLink2 = req.model2 + "." + req.link2;
     
     if(this->deleteJointIfPresent(strLink1, strLink2) || this->deleteJointIfPresent(strLink2, strLink1)) {
-      std::cout << "[DUMMY] Detached link '" << strLink1 << "' from link '" << strLink2 << "'" << std::endl;
+      std::cout << "[Attache] Detached link '" << strLink1 << "' from link '" << strLink2 << "'" << std::endl;
       
       res.success = true;
     } else {
