@@ -78,16 +78,16 @@ namespace gazebo {
 	    
 	    res.success = true;
 	  } else {
-	    std::cerr << this->title() << " No link '" << req.model2 << "." << req.link2 << "'" << std::endl;
+	    std::cerr << this->title(true) << " No link '" << req.model2 << "." << req.link2 << "'" << std::endl;
 	  }
 	} else {
-	  std::cerr << this->title() << " No model '" << req.model2 << "'" << std::endl;
+	  std::cerr << this->title(true) << " No model '" << req.model2 << "'" << std::endl;
 	}
       } else {
-	std::cerr << this->title() << " No link '" << req.model1 << "." << req.link1 << "'" << std::endl;
+	std::cerr << this->title(true) << " No link '" << req.model1 << "." << req.link1 << "'" << std::endl;
       }
     } else {
-      std::cerr << this->title() << " No model '" << req.model1 << "'" << std::endl;
+      std::cerr << this->title(true) << " No model '" << req.model1 << "'" << std::endl;
     }
     
     return true;
@@ -102,7 +102,7 @@ namespace gazebo {
       
       res.success = true;
     } else {
-      std::cerr << this->title() << " No connection to detach between '" << strLink1 << "' and '" << strLink2 << "'" << std::endl;
+      std::cerr << this->title(true) << " No connection to detach between '" << strLink1 << "' and '" << strLink2 << "'" << std::endl;
       
       res.success = false;
     }
@@ -110,7 +110,11 @@ namespace gazebo {
     return true;
   }
   
-  std::string Attache::title() {
-    return "\033[1;37m[Attache]\033[0m";
+  std::string Attache::title(bool bFailed) {
+    if(bFailed) {
+      return "\033[1;31m[Attache]\033[0m";
+    } else {
+      return "\033[1;37m[Attache]\033[0m";
+    }
   }
 }

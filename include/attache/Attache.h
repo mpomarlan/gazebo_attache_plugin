@@ -49,7 +49,7 @@ namespace gazebo {
     bool serviceAttach(attache_msgs::Attachment::Request &req, attache_msgs::Attachment::Response &res);
     bool serviceDetach(attache_msgs::Attachment::Request &req, attache_msgs::Attachment::Response &res);
     
-    std::string title();
+    std::string title(bool bFailed = false);
   };
   
   GZ_REGISTER_WORLD_PLUGIN(Attache)
