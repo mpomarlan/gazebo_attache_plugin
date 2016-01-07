@@ -94,17 +94,33 @@ namespace gazebo {
   }
   
   bool Attache::serviceDetach(attache_msgs::Attachment::Request &req, attache_msgs::Attachment::Response &res) {
-    std::string strLink1 = req.model1 + "." + req.link1;
-    std::string strLink2 = req.model2 + "." + req.link2;
-    
-    if(this->deleteJointIfPresent(strLink1, strLink2) || this->deleteJointIfPresent(strLink2, strLink1)) {
-      std::cout << this->title() << " Detached link '" << strLink2 << "' from link '" << strLink1 << "'" << std::endl;
+    if(req.model1 == "*" && req.link1 == "*" && req.model2 == "*" && req.link2 == "*") {
+      // Delete all links
+      for(std::pair<std::string, std::map<std::string, physics::JointPtr>> prModel : m_mapJoints) {
+	for(std::pair<std::string, physics::JointPtr> prLink : prModel.second) {
+	  prLink.second->Detach();
+	  prLink.second->Update();
+	  prLink.second->Reset();
+	  prLink.second->Fini();
+	}
+      }
+      
+      m_mapJoints.clear();
       
       res.success = true;
     } else {
-      std::cerr << this->title(true) << " No connection to detach between '" << strLink1 << "' and '" << strLink2 << "'" << std::endl;
+      std::string strLink1 = req.model1 + "." + req.link1;
+      std::string strLink2 = req.model2 + "." + req.link2;
+    
+      if(this->deleteJointIfPresent(strLink1, strLink2) || this->deleteJointIfPresent(strLink2, strLink1)) {
+	std::cout << this->title() << " Detached link '" << strLink2 << "' from link '" << strLink1 << "'" << std::endl;
       
-      res.success = false;
+	res.success = true;
+      } else {
+	std::cerr << this->title(true) << " No connection to detach between '" << strLink1 << "' and '" << strLink2 << "'" << std::endl;
+      
+	res.success = false;
+      }
     }
     
     return true;
