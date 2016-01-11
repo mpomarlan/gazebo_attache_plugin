@@ -11,8 +11,13 @@ namespace gazebo {
   void Attache::Load(physics::WorldPtr wpWorld, sdf::ElementPtr epPtr) {
     this->m_wpWorld = wpWorld;
     
+    // Attachment
     m_srvAttach = m_nhHandle.advertiseService<Attache>("attach", &Attache::serviceAttach, this);
     m_srvDetach = m_nhHandle.advertiseService<Attache>("detach", &Attache::serviceDetach, this);
+    
+    // Joint Control
+    m_srvJointControl = m_nhHandle.advertiseService<Attache>("joint_control", &Attache::serviceSetJoint, this);
+    m_srvJointInformation = m_nhHandle.advertiseService<Attache>("joint_information", &Attache::serviceGetJoint, this);
     
     this->m_cpUpdateConnection = event::Events::ConnectWorldUpdateBegin(boost::bind(&Attache::OnUpdate, this, _1));
     
@@ -126,11 +131,86 @@ namespace gazebo {
     return true;
   }
   
+  bool Attache::serviceSetJoint(attache_msgs::JointControl::Request &req, attache_msgs::JointControl::Response &res) {
+    if(req.model != "" && req.joint != "") {
+      res.success = this->setJointPosition(req.model, req.joint, req.position);
+    } else {
+      res.success = false;
+    }
+    
+    return true;
+  }  
+  
+  bool Attache::serviceGetJoint(attache_msgs::JointInformation::Request &req, attache_msgs::JointInformation::Response &res) {
+    if(req.model != "" && req.joint != "") {
+      res.success = this->getJointPosition(req.model, req.joint, res.position, res.min, res.max);
+    } else {
+      res.success = false;
+    }
+    
+    return true;
+  }  
+  
   std::string Attache::title(bool bFailed) {
     if(bFailed) {
       return "\033[1;31m[Attache]\033[0m";
     } else {
       return "\033[1;37m[Attache]\033[0m";
     }
+  }
+  
+  gazebo::physics::JointPtr Attache::modelJointForName(std::string strModel, std::string strJoint) {
+    gazebo::physics::ModelPtr mpModel = this->modelForName(strModel);
+    gazebo::physics::JointPtr jpJoint = NULL;
+    
+    if(mpModel) {
+      jpJoint = mpModel->GetJoint(strJoint);
+    }
+    
+    return jpJoint;
+  }
+  
+  gazebo::physics::ModelPtr Attache::modelForName(std::string strModel) {
+    return this->m_wpWorld->GetModel(strModel);
+  }
+  
+  bool Attache::setJointPosition(std::string strModel, std::string strJoint, float fPosition) {
+    bool bSuccess = false;
+    gazebo::physics::ModelPtr mpModel = this->modelForName(strModel);
+    
+    if(mpModel) {
+      gazebo::physics::JointControllerPtr jcpController = mpModel->GetJointController();
+      gazebo::physics::JointPtr jpJoint = this->modelJointForName(strModel, strJoint);
+      
+      if(jpJoint && jcpController) {
+	std::cout << this->title() << "Set position for joint '" << strModel << "." << strJoint << "' = " << fPosition << std::endl;
+	
+	jcpController->SetJointPosition(jpJoint, fPosition);
+	bSuccess = true;
+      } else {
+	std::cerr << this->title(true) << "No joint or joint controller for '" << strModel << "." << strJoint << "'" << std::endl;
+      }
+    } else {
+      std::cerr << this->title(true) << "No model '" << strModel << "'" << std::endl;
+    }
+    
+    return bSuccess;
+  }
+  
+  bool Attache::getJointPosition(std::string strModel, std::string strJoint, float& fPosition, float& fMin, float& fMax) {
+    bool bSuccess = false;
+    gazebo::physics::JointPtr jpJoint = this->modelJointForName(strModel, strJoint);
+    
+    if(jpJoint) {
+      fPosition = jpJoint->GetAngle(0).Radian();
+      fMin = jpJoint->GetLowerLimit(0).Radian();
+      fMax = jpJoint->GetUpperLimit(0).Radian();
+      
+      bSuccess = true;
+    } else {
+      std::cerr << this->title() << "No joint '" << strModel << "." << strJoint << "'" << std::endl;
+    }
+    
+    return bSuccess;
   }
 }
