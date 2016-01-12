@@ -7,6 +7,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <mutex>
 
 // Boost
 #include <boost/bind.hpp>
@@ -50,6 +51,8 @@ namespace gazebo {
     event::ConnectionPtr m_cpUpdateConnection;
     
     std::list<JointSetpoint> m_lstSetpoints;
+    
+    std::mutex m_mtxAccess;
     
   protected:
   public:

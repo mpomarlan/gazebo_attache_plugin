@@ -27,14 +27,13 @@ namespace gazebo {
   void Attache::OnUpdate(const common::UpdateInfo &uiInfo) {
     ros::spinOnce();
     
-    std::list<std::list<JointSetpoint>::iterator> lstRemoveIterators;
+    std::lock_guard<std::mutex> lgGuard(m_mtxAccess);
     
     for(std::list<JointSetpoint>::iterator itSetpoint = m_lstSetpoints.begin();
 	itSetpoint != m_lstSetpoints.end(); ++itSetpoint) {
       this->setJointPosition((*itSetpoint).strModel, (*itSetpoint).strJoint, (*itSetpoint).fPosition);
       
       gazebo::physics::ModelPtr mpModel = this->modelForName((*itSetpoint).strModel);
-      
       if(mpModel) {
 	gazebo::physics::JointControllerPtr jcpController = mpModel->GetJointController();
 	
@@ -44,16 +43,14 @@ namespace gazebo {
       }
       
       if((*itSetpoint).bHold == false) {
-	lstRemoveIterators.push_back(itSetpoint);
+	m_lstSetpoints.erase(itSetpoint);
       }
-    }
-    
-    for(std::list<JointSetpoint>::iterator itRemove : lstRemoveIterators) {
-      m_lstSetpoints.erase(itRemove);
     }
   }
   
   void Attache::addJointSetpoint(JointSetpoint jsSetpoint) {
+    std::lock_guard<std::mutex> lgGuard(m_mtxAccess);
+    
     // Remove setpoint if we already have it
     for(std::list<JointSetpoint>::iterator itSetpoint = m_lstSetpoints.begin();
 	itSetpoint != m_lstSetpoints.end(); ++itSetpoint) {
@@ -225,7 +222,6 @@ namespace gazebo {
       gazebo::physics::JointPtr jpJoint = this->modelJointForName(strModel, strJoint);
       
       if(jpJoint && jcpController) {
-	jcpController->AddJoint(jpJoint);
 	jcpController->SetJointPosition(jpJoint, fPosition);
 	
 	bSuccess = true;
