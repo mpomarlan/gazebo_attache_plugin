@@ -26,6 +26,45 @@ namespace gazebo {
   
   void Attache::OnUpdate(const common::UpdateInfo &uiInfo) {
     ros::spinOnce();
+    
+    std::list<std::list<JointSetpoint>::iterator> lstRemoveIterators;
+    
+    for(std::list<JointSetpoint>::iterator itSetpoint = m_lstSetpoints.begin();
+	itSetpoint != m_lstSetpoints.end(); ++itSetpoint) {
+      this->setJointPosition((*itSetpoint).strModel, (*itSetpoint).strJoint, (*itSetpoint).fPosition);
+      
+      gazebo::physics::ModelPtr mpModel = this->modelForName((*itSetpoint).strModel);
+      
+      if(mpModel) {
+	gazebo::physics::JointControllerPtr jcpController = mpModel->GetJointController();
+	
+	if(jcpController) {
+	  jcpController->Update();
+	}
+      }
+      
+      if((*itSetpoint).bHold == false) {
+	lstRemoveIterators.push_back(itSetpoint);
+      }
+    }
+    
+    for(std::list<JointSetpoint>::iterator itRemove : lstRemoveIterators) {
+      m_lstSetpoints.erase(itRemove);
+    }
+  }
+  
+  void Attache::addJointSetpoint(JointSetpoint jsSetpoint) {
+    // Remove setpoint if we already have it
+    for(std::list<JointSetpoint>::iterator itSetpoint = m_lstSetpoints.begin();
+	itSetpoint != m_lstSetpoints.end(); ++itSetpoint) {
+      if((*itSetpoint).strModel == jsSetpoint.strModel &&
+	 (*itSetpoint).strJoint == jsSetpoint.strJoint) {
+	m_lstSetpoints.erase(itSetpoint);
+	break;
+      }
+    }
+    
+    m_lstSetpoints.push_back(jsSetpoint);
   }
   
   bool Attache::deleteJointIfPresent(std::string strLink1, std::string strLink2) {
@@ -116,14 +155,14 @@ namespace gazebo {
     } else {
       std::string strLink1 = req.model1 + "." + req.link1;
       std::string strLink2 = req.model2 + "." + req.link2;
-    
+      
       if(this->deleteJointIfPresent(strLink1, strLink2) || this->deleteJointIfPresent(strLink2, strLink1)) {
 	std::cout << this->title() << " Detached link '" << strLink2 << "' from link '" << strLink1 << "'" << std::endl;
-      
+	
 	res.success = true;
       } else {
 	std::cerr << this->title(true) << " No connection to detach between '" << strLink1 << "' and '" << strLink2 << "'" << std::endl;
-      
+	
 	res.success = false;
       }
     }
@@ -133,7 +172,10 @@ namespace gazebo {
   
   bool Attache::serviceSetJoint(attache_msgs::JointControl::Request &req, attache_msgs::JointControl::Response &res) {
     if(req.model != "" && req.joint != "") {
-      res.success = this->setJointPosition(req.model, req.joint, req.position);
+      std::cout << this->title() << " Set position for joint '" << req.model << "." << req.joint << "' = " << req.position << " (hold = " << (req.hold_position ? "yes" : "no") << ")" << std::endl;
+      
+      this->addJointSetpoint({req.model, req.joint, req.position, req.hold_position ? true : false});
+      res.success = true;
     } else {
       res.success = false;
     }
@@ -183,15 +225,15 @@ namespace gazebo {
       gazebo::physics::JointPtr jpJoint = this->modelJointForName(strModel, strJoint);
       
       if(jpJoint && jcpController) {
-	std::cout << this->title() << "Set position for joint '" << strModel << "." << strJoint << "' = " << fPosition << std::endl;
-	
+	jcpController->AddJoint(jpJoint);
 	jcpController->SetJointPosition(jpJoint, fPosition);
+	
 	bSuccess = true;
       } else {
-	std::cerr << this->title(true) << "No joint or joint controller for '" << strModel << "." << strJoint << "'" << std::endl;
+	std::cerr << this->title(true) << " No joint or joint controller for '" << strModel << "." << strJoint << "'" << std::endl;
       }
     } else {
-      std::cerr << this->title(true) << "No model '" << strModel << "'" << std::endl;
+      std::cerr << this->title(true) << " No model '" << strModel << "'" << std::endl;
     }
     
     return bSuccess;
@@ -208,7 +250,7 @@ namespace gazebo {
       
       bSuccess = true;
     } else {
-      std::cerr << this->title() << "No joint '" << strModel << "." << strJoint << "'" << std::endl;
+      std::cerr << this->title() << " No joint '" << strModel << "." << strJoint << "'" << std::endl;
     }
     
     return bSuccess;

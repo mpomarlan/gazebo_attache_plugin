@@ -24,10 +24,19 @@
 #include <attache_msgs/Attachment.h>
 #include <attache_msgs/JointControl.h>
 #include <attache_msgs/JointInformation.h>
+#include <gazebo/msgs/joint_cmd.pb.h>
 
 
 namespace gazebo {
   class Attache : public WorldPlugin {
+  public:
+    typedef struct {
+      std::string strModel;
+      std::string strJoint;
+      float fPosition;
+      bool bHold;
+    } JointSetpoint;
+    
   private:
     std::map< std::string, std::map<std::string, physics::JointPtr> > m_mapJoints; 
     
@@ -40,6 +49,8 @@ namespace gazebo {
     physics::WorldPtr m_wpWorld;
     event::ConnectionPtr m_cpUpdateConnection;
     
+    std::list<JointSetpoint> m_lstSetpoints;
+    
   protected:
   public:
     Attache();
@@ -47,6 +58,8 @@ namespace gazebo {
     
     void Load(physics::WorldPtr wpWorld, sdf::ElementPtr epPtr);
     void OnUpdate(const common::UpdateInfo &uiInfo);
+    
+    void addJointSetpoint(JointSetpoint jsSetpoint);
     
     bool deleteJointIfPresent(std::string strLink1, std::string strLink2);
     
